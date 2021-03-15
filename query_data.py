@@ -1,96 +1,83 @@
 def query_string(repo_onwer, repo_name):
     body_param = '''
             {
-            repository(owner: "%s", name: "%s") {
-                description
-                databaseId
-                name
-                owner {
-                    login
-                }
-                releases(first: 3, orderBy: {field: CREATED_AT, direction: DESC}){
-                    nodes{
-                        tagName
-                        name
-                        author{
-                            name
-                        }
-                        createdAt
-                        publishedAt
-                        updatedAt
-                        isLatest
-                        isPrerelease
-                    }
-                }
-                primaryLanguage {
-                    name
-                }
-                languages(first: 10, orderBy: {field: SIZE, direction: DESC}){
-                    nodes{
-                        name
-                    }
-                }
-                forkCount
-                isFork
-                parent{
-                    name
-                }
-                licenseInfo{
-                    name
-                }
-                dependencyGraphManifests(first: 50) {
-                    nodes {
-                        blobPath
-                        parseable
-                        dependenciesCount
-                        dependencies {
-                            nodes {
-                            packageManager
-                            packageName
-                            repository {
-                                databaseId
-                                name
-                                owner {
-                                login
-                                }
-                                releases(first: 3, orderBy: {field: CREATED_AT, direction: DESC}){
-                                    nodes{
+                repository(owner: "%s", name: "%s") {
+                    dependencyGraphManifests(first: 50) {
+                        nodes {
+                            blobPath
+                            parseable
+                            exceedsMaxSize
+                            dependenciesCount
+                            dependencies {
+                                nodes {
+                                    packageManager
+                                    packageName
+                                    repository {
+                                        databaseId
+                                        url
                                         name
-                                        author{
+                                        owner {
+                                            login
+                                        }
+                                        releases(first: 1, orderBy: {field: CREATED_AT, direction: DESC}){
+                                            nodes{
+                                                tagName
+                                                author{
+                                                    login
+                                                    databaseId
+                                                }
+                                                createdAt
+                                                publishedAt
+                                                updatedAt
+                                                isLatest
+                                            }
+                                        }
+                                        primaryLanguage {
                                             name
                                         }
-                                        createdAt
-                                        publishedAt
-                                        updatedAt
-                                        isLatest
-                                        isPrerelease
+                                        languages(first: 20, orderBy: {field: SIZE, direction: DESC}){
+                                            nodes{
+                                                name
+                                            }
+                                        }
+                                        forkCount
+                                        isFork
+                                        parent{
+                                            name
+                                        }
+                                        licenseInfo{
+                                            spdxId
+                                        }
+                                        vulnerabilityAlerts(first: 10){
+                                            totalCount
+                                            nodes{
+                                                vulnerableManifestPath
+                                                vulnerableRequirements
+                                                securityVulnerability{
+                                                    package{
+                                                        ecosystem
+                                                    }
+                                                    severity
+                                                    vulnerableVersionRange
+                                                    updatedAt
+                                                }
+                                                securityAdvisory{
+                                                    cvss{
+                                                        score
+                                                    }
+                                                    ghsaId
+                                                }
+                                            }
+                                        }
                                     }
+                                requirements
+                                hasDependencies
                                 }
-                                primaryLanguage {
-                                    name
-                                }
-                                languages(first: 10, orderBy: {field: SIZE, direction: DESC}){
-                                    nodes{
-                                        name
-                                    }
-                                }
-                                forkCount
-                                isFork
-                                parent{
-                                    name
-                                }
-                                licenseInfo{
-                                    name
-                                }
-                            }
-                            requirements
-                            hasDependencies
                             }
                         }
                     }
                 }
             }
-        }
         '''
 
     query_data = (body_param % (repo_onwer, repo_name))

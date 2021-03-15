@@ -1,4 +1,3 @@
-from pprint import pprint
 from query_data import query_string
 import requests
 import pandas as pd
@@ -30,29 +29,27 @@ def get_test_data(token, repo_owner, repo_name, parent="root", depth=1):
     }
     get_info = requests.post(url=url, json={'query': data}, headers=headers, verify=True)
     query_result = get_info.json()
-
     global level
 
-    for m in query_result['data']['repository']['dependencyGraphManifests']['nodes']:
-        for dep in m['dependencies']['nodes']:
-            dep["From"] = parent
+    for node_repo in query_result['data']['repository']['dependencyGraphManifests']['nodes']:
+        for node_package in node_repo['dependencies']['nodes']:
+            node_package["From"] = parent
             try:
-                # since dep['repository'] can be none
-                print(f"DataBaseID: {dep['repository']['databaseId']} ---> From: {parent}")
+                print(f"DataBaseID: {node_package['repository']['databaseId']} ---> From: {parent}")
             except TypeError:
                 pass
             else:
-                # if dep not in data_table:
-                data_table.append(dep)
-                level.append(dep)
-                if (depth == 0 or len(level) < depth) and dep['hasDependencies'] and dep['repository']:
+                data_table.append(node_package)
+                level.append(node_package)
+                if (depth == 0 or len(level) < depth) and node_package['hasDependencies'] and node_package[
+                    'repository']:
                     # prevent from getting same databaseID in a loop
-                    if dep['repository']['databaseId'] not in level:
-                        time.sleep(0.2)
-                        owner_info = dep['repository']['owner']['login']
-                        repo_name_info = dep['repository']['name']
+                    if node_package['repository']['databaseId'] not in level:
+                        time.sleep(0.5)
+                        owner_info = node_package['repository']['owner']['login']
+                        repo_name_info = node_package['repository']['name']
                         yield from get_test_data(token_key, owner_info, repo_name_info,
-                                                 parent=dep["repository"]["databaseId"])
+                                                 parent=node_package["repository"]["databaseId"])
                 level.pop()
 
 
@@ -64,8 +61,8 @@ def get_file_name(file_name, directory_name=None):
 
 
 if __name__ == '__main__':
-    argp = argparse.ArgumentParser(description="Find project dependencies using GitHub's API")
-    argp.add_argument('repository', help='Input repository name as Bkstandukar/ProjectDependency')
+    argp = argparse.ArgumentParser(description="Find project dependencies using GitHub's API v4")
+    argp.add_argument('repository', help='Input repository name as foo/bar')
     argp.add_argument('--depth', type=int, default=1, help='Depth to search')
     args = argp.parse_args()
 
@@ -75,13 +72,14 @@ if __name__ == '__main__':
     repo_onwer_details, repo_name_detail = repo_info
 
     token_key = get_token_key()
+    try:
+        all_data = [x for x in get_test_data(token_key, repo_onwer_details, repo_name_detail, depth=args.depth)]
+    except TypeError:
+        print("i have an error")
 
-    all_data = [x for x in get_test_data(token_key, repo_onwer_details, repo_name_detail, depth=2)]
-
-    okay_df = pd.json_normalize(data_table, max_level=500)
-    # okay_df = okay_df.drop()
-    print(okay_df)
+    repo_dependencies_df = pd.json_normalize(data_table, max_level=500)
+    print(repo_dependencies_df)
     file_to_save = get_file_name(f"{repo_onwer_details}_{repo_name_detail}", directory_name="query_results")
-    okay_df.to_csv(file_to_save, index=False)
+    repo_dependencies_df.to_csv(file_to_save, index=False)
 
-    print(f"file is save as: {file_to_save}")
+    print(f"file is saved as: {file_to_save}")

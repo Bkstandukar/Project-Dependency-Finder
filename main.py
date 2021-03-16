@@ -42,6 +42,7 @@ def get_test_data(token, repo_owner, repo_name, parent="root", depth=1):
             else:
                 data_table.append(node_package)
                 level.append(node_package)
+                # go to depth and avoid duplicates
                 if (depth == 0 or len(level) < depth) and node_package['hasDependencies'] and node_package[
                     'repository'] and node_package['repository']['databaseId'] not in data_table:
                     # prevent from getting same databaseID in a loop (circular dependencies)

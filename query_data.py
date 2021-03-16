@@ -1,4 +1,4 @@
-def query_string(repo_onwer, repo_name):
+def query_string(repo_owner, repo_name):
     body_param = '''
             {
                 repository(owner: "%s", name: "%s") {
@@ -80,5 +80,5 @@ def query_string(repo_onwer, repo_name):
             }
         '''
 
-    query_data = (body_param % (repo_onwer, repo_name))
+    query_data = (body_param % (repo_owner, repo_name))
     return query_data

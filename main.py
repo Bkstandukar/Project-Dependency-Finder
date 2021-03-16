@@ -31,7 +31,8 @@ def get_test_data(token, repo_owner, repo_name, parent="root", depth=1):
     query_result = get_info.json()
     global level
 
-    for node_repo in query_result['data']['repository']['dependencyGraphManifests']['nodes']:  # query result is in list in list
+    for node_repo in query_result['data']['repository']['dependencyGraphManifests'][
+        'nodes']:  # query result is in list in list
         for node_package in node_repo['dependencies']['nodes']:
             node_package["From"] = parent  # to know the parent repository
             try:
@@ -42,7 +43,7 @@ def get_test_data(token, repo_owner, repo_name, parent="root", depth=1):
                 data_table.append(node_package)
                 level.append(node_package)
                 if (depth == 0 or len(level) < depth) and node_package['hasDependencies'] and node_package[
-                    'repository']:
+                    'repository'] and node_package['repository']['databaseId'] not in data_table:
                     # prevent from getting same databaseID in a loop (circular dependencies)
                     if node_package['repository']['databaseId'] not in level:
                         time.sleep(0.5)
@@ -75,7 +76,7 @@ if __name__ == '__main__':
     try:
         all_data = [x for x in get_test_data(token_key, repo_owner_details, repo_name_detail, depth=args.depth)]
     except TypeError:
-        print("i have an error")
+        print("I have an error. Try again.")
 
     repo_dependencies_df = pd.json_normalize(data_table, max_level=500)
     print(repo_dependencies_df)

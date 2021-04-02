@@ -11,9 +11,11 @@ parent_flag = True
 level = []  # to count depth
 data_table = []  # save output
 time_str_file = time.strftime("%m-%d-%Y_%H-%M-%S")
+seen = []
 
 
-def get_token_key():  # read token from cred.json file
+def get_token_key():
+    # read token from cred.json file
     with open("cred.json", "r") as cred:
         token_json = json.load(cred)
         token_map = token_json["token_key"]
@@ -27,32 +29,55 @@ def get_test_data(token, repo_owner, repo_name, parent="root", depth=1):
         "Authorization": f"Bearer {token}",  # github personal token for authentication
         "Accept": "application/vnd.github.hawkgirl-preview+json"  # needed to access dependency graph
     }
-    get_info = requests.post(url=url, json={'query': data}, headers=headers, verify=True)
-    query_result = get_info.json()
-    global level
 
-    for node_repo in query_result['data']['repository']['dependencyGraphManifests'][
-        'nodes']:  # query result is in list in list
-        for node_package in node_repo['dependencies']['nodes']:
-            node_package["From"] = parent  # to know the parent repository
-            try:
-                print(f"DataBaseID: {node_package['repository']['databaseId']} ---> From: {parent}")
-            except TypeError:
-                pass
-            else:
-                data_table.append(node_package)
-                level.append(node_package)
-                # go to depth and avoid duplicates
-                if (depth == 0 or len(level) < depth) and node_package['hasDependencies'] and node_package[
-                    'repository'] and node_package['repository']['databaseId'] not in data_table:
-                    # prevent from getting same databaseID in a loop (circular dependencies)
-                    if node_package['repository']['databaseId'] not in level:
-                        time.sleep(0.5)
-                        owner_info = node_package['repository']['owner']['login']
-                        repo_name_info = node_package['repository']['name']
-                        yield from get_test_data(token_key, owner_info, repo_name_info,
-                                                 parent=node_package["repository"]["databaseId"], depth=depth)
-                level.pop()
+    get_info = requests.post(url=url, json={'query': data}, headers=headers, verify=True)
+
+    if get_info.status_code == 200:
+        query_result = get_info.json()
+        if 'errors' in query_result and len(query_result['errors']) > 0:
+            # this seems to happen when GitHub needs to populate the data
+            fail_data = {'From': parent,
+                         'hasDependencies': False,
+                         'status': 'timeout',
+                         'repository': {'databaseId': None,
+                                        'name': repo_name,
+                                        'owner': {'login': repo_owner},
+                                        }
+                         }
+            data_table.append(fail_data)
+        else:
+            global level
+            for node_repo in query_result['data']['repository']['dependencyGraphManifests']['nodes']:
+                # query result is in list in list
+                for node_package in node_repo['dependencies']['nodes']:
+                    node_package["From"] = parent  # to know the parent repository
+                    try:
+                        print(f"DataBaseID: {node_package['repository']['databaseId']} ---> From: {parent}")
+                    except TypeError:
+                        pass
+                    else:
+                        data_table.append(node_package)
+                        # go to depth and avoid duplicates
+                        if (depth == 0 or len(level) + 1 < depth) and node_package['hasDependencies'] and node_package['repository']:
+                            if node_package['repository']['databaseId'] not in seen:
+                                level.append(node_package["repository"]["databaseId"])
+                                seen.append(node_package["repository"]["databaseId"])
+                                time.sleep(0.5)
+                                owner_info = node_package['repository']['owner']['login']
+                                repo_name_info = node_package['repository']['name']
+                                yield from get_test_data(token_key, owner_info, repo_name_info,
+                                                         parent=node_package["repository"]["databaseId"], depth=depth)
+                                level.pop()
+    else:
+        fail_data = {'From': parent,
+                     'hasDependencies': False,
+                     'status': get_info.status_code,
+                     'repository': {'databaseId': None,
+                                    'name': repo_name,
+                                    'owner': {'login': repo_owner},
+                                    }
+                     }
+        data_table.append(fail_data)
 
 
 def get_file_name(file_name, directory_name=None):
@@ -74,13 +99,13 @@ if __name__ == '__main__':
     repo_owner_details, repo_name_detail = repo_info
 
     token_key = get_token_key()
+
     try:
         all_data = [x for x in get_test_data(token_key, repo_owner_details, repo_name_detail, depth=args.depth)]
     except TypeError:
-        print("I have an error. Try again.")
+        print("Data Type Error.")
 
     repo_dependencies_df = pd.json_normalize(data_table, max_level=500)
-    print(repo_dependencies_df)
     file_to_save = get_file_name(f"{repo_owner_details}_{repo_name_detail}", directory_name="query_results")
     repo_dependencies_df.to_csv(file_to_save, index=False)
 

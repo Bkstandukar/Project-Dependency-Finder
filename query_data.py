@@ -19,6 +19,10 @@ def query_string(repo_owner, repo_name):
                                         owner {
                                             login
                                         }
+                                        stargazerCount
+                                        watchers(first: 50){
+                                            totalCount
+                                        }
                                         releases(first: 1, orderBy: {field: CREATED_AT, direction: DESC}){
                                             nodes{
                                                 tagName
